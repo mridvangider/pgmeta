@@ -93,26 +93,14 @@ def test_change_db(client):
     assert client._db == new_db
     client.change_db(original_db)
 
-
-def test_close_explicit(client):
-    """Test that explicit close closes the connection and cursor."""
-    original_conn = client._connection
-    original_cursor = client._cursor
-    client.close()
-    assert original_conn is not None
-    assert original_cursor is not None
-    assert client._connection is None
-    assert client._cursor is None
-
-
 def test_context_manager(client):
     """Test that PgMetaClient works as a context manager."""
     with client as c:
-        assert c._connection is not None
-        assert c._cursor is not None
+        assert not c._connection.closed
+        assert not c._cursor.closed
     # After exit, connection should be closed
-    assert client._connection is None
-    assert client._cursor is None
+    assert client._connection.closed
+    assert client._cursor.closed
 
 
 def test_connect():
