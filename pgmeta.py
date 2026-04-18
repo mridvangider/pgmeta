@@ -1,5 +1,5 @@
 import psycopg
-from psycopg.rows import dict_row
+from psycopg.rows import DictRow, dict_row
 from urllib.parse import quote
 
 class PgMetaClient:
@@ -21,13 +21,11 @@ class PgMetaClient:
         self._password: str = password
         self._db: str = db
         self._connection_string: str = f"postgres://{self._user}:{quote(self._password)}@{self._host}:{self._port}/{self._db}"
-        self._connection = psycopg.connect(self._connection_string, row_factory=dict_row)
+        self._connection: psycopg.Connection[DictRow] = psycopg.Connection[DictRow].connect(self._connection_string, row_factory=dict_row)
         self._cursor = self._connection.cursor()
 
     def is_connected(self):
-        return self._connection \
-            and not self._connection.closed \
-            and self._cursor \
+        return not self._connection.closed \
             and not self._cursor.closed
 
     def connect(self, reconnect: bool = False):
@@ -36,7 +34,7 @@ class PgMetaClient:
             return
         
         self._connection_string: str = f"postgres://{self._user}:{quote(self._password)}@{self._host}:{self._port}/{self._db}"
-        self._connection = psycopg.connect(self._connection_string, row_factory=dict_row)
+        self._connection: psycopg.Connection[DictRow] = psycopg.Connection[DictRow].connect(self._connection_string, row_factory=dict_row)
         self._cursor = self._connection.cursor()
 
     def change_db(self, db: str):
@@ -55,8 +53,6 @@ class PgMetaClient:
             self._cursor.close()
         if self._connection and not self._connection.closed:
             self._connection.close()
-            self._connection = None
-            self._cursor = None
 
     def __enter__(self):
         """Enter the runtime context for the database connection."""
@@ -75,8 +71,8 @@ class PgMetaClient:
         Returns:
             List of dictionaries containing database information from pg_database
         """
-        if not self.is_connected():
-            raise Exception("Not connected to database")
+        if not self._cursor:
+            self._cursor = self._connection.cursor()
         
         _ = self._cursor.execute("SELECT * FROM pg_database WHERE datistemplate = false")
         return self._cursor.fetchall()
@@ -87,8 +83,8 @@ class PgMetaClient:
         Returns:
             List of dictionaries containing schema information from information_schema.schemata
         """
-        if not self.is_connected():
-            raise Exception("Not connected to database")
+        if not self._cursor:
+            self._cursor = self._connection.cursor()
         
         _ = self._cursor.execute("SELECT * FROM information_schema.schemata WHERE catalog_name = %s AND schema_name NOT IN ('pg_catalog', 'information_schema')", (self._db,))
         return self._cursor.fetchall()
@@ -102,8 +98,8 @@ class PgMetaClient:
         Returns:
             List of dictionaries containing table information from information_schema.tables
         """
-        if not self.is_connected():
-            raise Exception("Not connected to database")
+        if not self._cursor:
+            self._cursor = self._connection.cursor()
         
         if schema:
             _ = self._cursor.execute("SELECT * FROM information_schema.tables WHERE table_schema = %s", (schema,))
@@ -122,8 +118,8 @@ class PgMetaClient:
         Returns:
             List of dictionaries containing column information from information_schema.columns
         """
-        if not self.is_connected():
-            raise Exception("Not connected to database")
+        if not self._cursor:
+            self._cursor = self._connection.cursor()
         
         cols_query = "SELECT * FROM information_schema.columns"
         conditions = []
