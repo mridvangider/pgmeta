@@ -1,7 +1,7 @@
 [project]
 name = "pgmeta"
 version = "0.1.0"
-description = "Add your description here"
+description = "A ligthweight library for getting metadata from Postgres databases"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
